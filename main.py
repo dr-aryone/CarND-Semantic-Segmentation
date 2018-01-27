@@ -56,15 +56,75 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :param num_classes: Number of classes to classify
     :return: The Tensor for the last layer of output
     """
-    conv_1x1_layer_7 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same')
-    conv_1x1_layer_4 = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same')
-    conv_1x1_layer_3 = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, padding='same')
+    conv_1x1_layer_7 = tf.layers.conv2d(
+                                        inputs=vgg_layer7_out, 
+                                        filters=num_classes,
+                                        kernel_size=1, 
+                                        strides=(1,1),
+                                        padding="same",
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                        name = "inception"
+                                        )
 
-    output = tf.layers.conv2d_transpose(conv_1x1_layer_7, num_classes, 4, 2, 'same')  #upsampling up by 2
+    conv_1x1_layer_4 = tf.layers.conv2d(
+                                        inputs=vgg_layer4_out, 
+                                        filters=num_classes,
+                                        kernel_size=1, 
+                                        strides=(1,1),
+                                        padding="same",
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                        name = "conv_1x1_layer_4"
+                                        )
+
+    conv_1x1_layer_3 = tf.layers.conv2d(
+                                        inputs=vgg_layer3_out, 
+                                        filters=num_classes,
+                                        kernel_size=1, 
+                                        strides=(1,1),
+                                        padding="same",
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                        name = "conv_1x1_layer_3"
+                                        )      
+
+    output = tf.layers.conv2d_transpose(
+                                        inputs=conv_1x1_layer_7, 
+                                        filters=num_classes,
+                                        kernel_size=4, 
+                                        strides=(2,2),
+                                        padding="same",
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                        name = "decoder_layer1"
+                                        )  #upsampling up by 2
+
     output = tf.add(output, conv_1x1_layer_4)  # 1st skip layer
-    output = tf.layers.conv2d_transpose(output, num_classes, 4, 2, 'same')  #upsampling up by 2
+
+    output = tf.layers.conv2d_transpose(
+                                        inputs=output, 
+                                        filters=num_classes,
+                                        kernel_size=4, 
+                                        strides=(2,2),
+                                        padding="same",
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                        name = "decoder_layer2"
+                                        )  #upsampling up by 2
+
     output = tf.add(output, conv_1x1_layer_3)  # 2nd skip layer
-    output = tf.layers.conv2d_transpose(output, num_classes, 16, 8,'same')  #upsampling up by 8
+
+    output = tf.layers.conv2d_transpose(
+                                        inputs=output, 
+                                        filters=num_classes,
+                                        kernel_size=16, 
+                                        strides=(8,8),
+                                        padding="same",
+                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3),
+                                        name = "decoder_layer3"
+                                        )  #upsampling up by 8
 
     return output
 
@@ -110,7 +170,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     """
     for epoch in range(epochs):
         for batch, (image, label) in enumerate(get_batches_fn(batch_size)):
-            feed_dict = {input_image: image, correct_label: label, keep_prob: 0.5, learning_rate: 1e-5}
+            feed_dict = {input_image: image, correct_label: label, keep_prob: 0.8, learning_rate: 1e-4}
             _, loss = sess.run([train_op, cross_entropy_loss], feed_dict=feed_dict)
             print('Epoch ', epoch, ' Batch ', batch, ' Loss ', loss)
 
@@ -143,8 +203,8 @@ def run():
         # OPTIONAL: Augment Images for better results
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
-        epochs = 85
-        batch_size = 2
+        epochs = 20
+        batch_size = 8
         learning_rate = tf.placeholder(tf.float32)
         correct_label = tf.placeholder(tf.int32, [None, None, None, num_classes])
 
